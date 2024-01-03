@@ -29,6 +29,7 @@ public class TcpApplication {
 		Socket socket = null;
 		InputStream inputStream = null;
 		OutputStream outputStream = null;
+		int a ;
 
 		try {
 			// 서버 소켓 생성
@@ -42,6 +43,7 @@ public class TcpApplication {
 				int count = 0;
 
 				while (true) {
+
 					System.out.println("데이터를 받습니다.");
 
 					// 클라이언트로부터 데이터를 읽기 위한 InputStream 생성
@@ -64,18 +66,23 @@ public class TcpApplication {
 					System.out.println(Arrays.toString(test));
 //                    processMessage(test);
 
+					if (count >= 1) {
+						byte[] secondBytes = {0x10,0x00,0x00,0x00,0x23,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+						outputStream.write(secondBytes);
+						outputStream.flush();
+						continue;
+					}
+
 					// 프로토콜 응답 코드
 					byte[] vitalBytes = {0x10,0x00,0x00,0x00,0x07,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-					byte[] betteryBytes = {0x10,0x00,0x00,0x00,0x23,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 					outputStream.write(vitalBytes);
 					outputStream.flush();
 
 					System.out.println("응답 데이터를 클라이언트에 전송했습니다.");
 
-					if (count == 1) {
-						socket.close();
-						break;
-					}
+//					if (count == 1) {
+//						break;
+//					}
 
 					count++;
 				}
