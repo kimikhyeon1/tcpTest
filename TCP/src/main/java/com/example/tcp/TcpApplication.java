@@ -17,9 +17,10 @@ import java.util.Arrays;
 public class TcpApplication {
 
 	private static final String[] DEVICE_ID = {
-			"VDR-1000", "VDR-10001", "test-0001", "test-0002", "test-0003", "test-0004", "test-0005", "test-0006", "test-0007",
-			"test-0008", "test-0009", "test-0010", "test-0011", "test-0012", "test-0013", "test-0014", "test-0015", "test-0016",
-			"test-0017", "test-0018", "test-0019", "test-0020"
+			"VDR-1000", "VDR-10001"
+//			, "test-0001", "test-0002", "test-0003", "test-0004", "test-0005", "test-0006", "test-0007",
+//			"test-0008", "test-0009", "test-0010", "test-0011", "test-0012", "test-0013", "test-0014", "test-0015", "test-0016",
+//			"test-0017", "test-0018", "test-0019", "test-0020"
 	};
 
 	public static void main(String[] args) throws IOException {
@@ -29,8 +30,7 @@ public class TcpApplication {
 		Socket socket = null;
 		InputStream inputStream = null;
 		OutputStream outputStream = null;
-		int a ;
-
+		urlConnection(DEVICE_ID[1]);
 		try {
 			// 서버 소켓 생성
 			serverSocket = new ServerSocket(9999);
@@ -48,14 +48,14 @@ public class TcpApplication {
 
 					// 클라이언트로부터 데이터를 읽기 위한 InputStream 생성
 					inputStream = socket.getInputStream();
-
 					// 클라이언트로부터 데이터를 전송하기 위한 OutputStream 생성
 					outputStream = socket.getOutputStream();
 
 					// 클라이언트로부터 데이터를 읽어오기
 					byte[] test = new byte[1600];
+					Thread.sleep(1100);
 					int length = inputStream.read(test);
-
+					System.out.println(length);
 //                    if (length > 100){
 //                        //서버로 데이터 보내기
 //                        for (int i = 0; i < DEVICE_ID.length; i++) {
@@ -64,11 +64,11 @@ public class TcpApplication {
 //                    }
 
 					System.out.println(Arrays.toString(test));
-//                    processMessage(test);
+                    processMessage(test);
 
 					if (count >= 1) {
-						byte[] secondBytes = {0x10,0x00,0x00,0x00,0x23,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-						outputStream.write(secondBytes);
+						byte[] secondVitalBytes = {0x10,0x00,0x00,0x00,0x23,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+						outputStream.write(secondVitalBytes);
 						outputStream.flush();
 						continue;
 					}
@@ -90,13 +90,15 @@ public class TcpApplication {
 
 		} catch (IOException e) {
 			throw new RuntimeException(e);
-		} finally {
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
 			serverSocket.close();
 			System.out.println("통신이 종료");
 		}
 	}
 
-	private static void urlConnection(String id, byte[] data) throws IOException {
+	private static void urlConnection(String id, String[] data) throws IOException {
 		String apiUrl = "http://localhost:8071/device/setWearableVitalSign?deviceId="+id;
 
 		URL url = new URL(apiUrl);
@@ -108,6 +110,7 @@ public class TcpApplication {
 		OutputStream os = conn.getOutputStream();
 		BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os,"UTF-8"));
 		writer.write(Arrays.toString(data));
+		writer.write(id);
 		writer.flush();
 		writer.close();
 		os.close();
@@ -169,14 +172,48 @@ public class TcpApplication {
 		// Flag에 해당하는 데이터 출력
 		printFlagData(flag);
 
+		// ecgSampleRate
 		short ecgSampleRate = readShortFromBytes(receivedData,56);
 		System.out.println("ecgSampleRate: " + ecgSampleRate);
 
+		// ecgGraphData
+		short[] ecgGraphData = new short[250];
+		int ecgRange = 63;
+
+		for (int i = 0; i < 250; i++) {
+			ecgGraphData[i] = readShortFromBytes(receivedData,ecgRange);
+			ecgRange += 2;
+		}
+
+		System.out.println("ecgGraphData: " + Arrays.toString(ecgGraphData));
+
+		// ppgSampleRate
 		short ppgSampleRate = readShortFromBytes(receivedData,563);
 		System.out.println("ecgSampleRate: " + ppgSampleRate);
 
+		// ppgSampleRate
+		short[] ppgGraphData = new short[250];
+		int ppgRange = 570;
+
+		for (int i = 0; i < 250; i++) {
+			ppgGraphData[i] = readShortFromBytes(receivedData,ppgRange);
+			ppgRange += 2;
+		}
+		System.out.println("ecgGraphData: " + Arrays.toString(ppgGraphData));
+
+		// rrgSampleRate
 		short rrgSampleRate = readShortFromBytes(receivedData,1070);
 		System.out.println("ecgSampleRate: " + rrgSampleRate);
+
+		// rrgGraphData
+		short[] rrgGraphData = new short[250];
+		int rrgRange = 1077;
+
+		for (int i = 0; i < 250; i++) {
+			rrgGraphData[i] = readShortFromBytes(receivedData,rrgRange);
+			rrgRange += 2;
+		}
+		System.out.println("ecgGraphData: " + Arrays.toString(rrgGraphData));
 
 		short spo2 = readShortFromBytes(receivedData,1577);
 		System.out.println("spo2: " + spo2);
