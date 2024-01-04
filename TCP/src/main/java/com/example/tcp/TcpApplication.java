@@ -12,6 +12,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
 
 @SpringBootApplication
 public class TcpApplication {
@@ -30,7 +33,7 @@ public class TcpApplication {
 		Socket socket = null;
 		InputStream inputStream = null;
 		OutputStream outputStream = null;
-		urlConnection(DEVICE_ID[1]);
+
 		try {
 			// 서버 소켓 생성
 			serverSocket = new ServerSocket(9999);
@@ -56,12 +59,13 @@ public class TcpApplication {
 					Thread.sleep(1100);
 					int length = inputStream.read(test);
 					System.out.println(length);
-//                    if (length > 100){
-//                        //서버로 데이터 보내기
-//                        for (int i = 0; i < DEVICE_ID.length; i++) {
-//                            urlConnection(DEVICE_ID[i], test);
-//                        }
-//                    }
+
+                    if (length > 1500){
+                        //서버로 데이터 보내기
+                        for (int i = 0; i < DEVICE_ID.length; i++) {
+                            urlConnection(DEVICE_ID[i], test);
+                        }
+                    }
 
 					System.out.println(Arrays.toString(test));
                     processMessage(test);
@@ -88,17 +92,35 @@ public class TcpApplication {
 				}
 			}
 
-		} catch (IOException e) {
+		} catch (IOException | InterruptedException e) {
 			throw new RuntimeException(e);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         } finally {
 			serverSocket.close();
 			System.out.println("통신이 종료");
 		}
 	}
 
-	private static void urlConnection(String id, String[] data) throws IOException {
+	private static void urlConnection(String id, byte[] data) throws IOException {
+		String apiUrl = "http://localhost:8071/device/setWearableVitalSign?deviceId="+id;
+
+		URL url = new URL(apiUrl);
+		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+		conn.setRequestMethod("POST");
+		conn.setRequestProperty("Content-Type", "application/json");
+		conn.setDoOutput(true);
+
+		OutputStream os = conn.getOutputStream();
+		BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os,"UTF-8"));
+		writer.write(Arrays.toString(data));
+		writer.write(id);
+		writer.flush();
+		writer.close();
+		os.close();
+
+		conn.getContent();
+	}
+
+	private static void urlConnectionTest(String id, byte[] data) throws IOException {
 		String apiUrl = "http://localhost:8071/device/setWearableVitalSign?deviceId="+id;
 
 		URL url = new URL(apiUrl);
@@ -170,7 +192,7 @@ public class TcpApplication {
 		System.out.println("Flag: " + flag);
 
 		// Flag에 해당하는 데이터 출력
-		printFlagData(flag);
+		Map<String,Boolean> isData = printFlagData(flag);
 
 		// ecgSampleRate
 		short ecgSampleRate = readShortFromBytes(receivedData,56);
@@ -215,26 +237,44 @@ public class TcpApplication {
 		}
 		System.out.println("ecgGraphData: " + Arrays.toString(rrgGraphData));
 
-		short spo2 = readShortFromBytes(receivedData,1577);
-		System.out.println("spo2: " + spo2);
+		int dataLength = 1577;
 
-		short resp = readShortFromBytes(receivedData,1579);
-		System.out.println("resp: " + resp);
+		if (isData.get("SPO2")){
+			short spo2 = readShortFromBytes(receivedData,dataLength);
+			System.out.println("spo2: " + spo2);
+			dataLength += 2;
+		}
 
-		short hr = readShortFromBytes(receivedData,1581);
-		System.out.println("hr: " + hr);
+		if (isData.get("RESP")){
+			short resp = readShortFromBytes(receivedData,dataLength);
+			System.out.println("resp: " + resp);
+			dataLength += 2;
+		}
 
-//        short nibpSys = readShortFromBytes(receivedData,1583);
-//        System.out.println("nibpSys: " + nibpSys);
-//
-//        short nibpDia = readShortFromBytes(receivedData,1585);
-//        System.out.println("nibpDia: " + nibpDia);
-//
-//        short nibpMean = readShortFromBytes(receivedData,1587);
-//        System.out.println("nibpMean: " + nibpMean);
-//
-//        short hr = readShortFromBytes(receivedData,1589);
-//        System.out.println("hr: " + hr);
+		if (isData.get("TEMP")){
+			short temp = readShortFromBytes(receivedData,dataLength);
+			System.out.println("temp: " + temp);
+			dataLength += 2;
+		}
+
+		if (isData.get("NIBP")){
+			short nibpSys = readShortFromBytes(receivedData,dataLength);
+			System.out.println("nibpSys: " + nibpSys);
+			dataLength += 2;
+
+			short nibpDia = readShortFromBytes(receivedData,dataLength);
+			System.out.println("nibpDia: " + nibpDia);
+			dataLength += 2;
+
+			short nibpMean = readShortFromBytes(receivedData,dataLength);
+			System.out.println("nibpMean: " + nibpMean);
+			dataLength += 2;
+		}
+
+		if (isData.get("HR")){
+			short hr = readShortFromBytes(receivedData,dataLength);
+			System.out.println("hr: " + hr);
+		}
 	}
 	private static short readShortFromBytes(byte[] bytes, int offset) {
 		return (short) ((bytes[offset] & 0xFF) | ((bytes[offset + 1] & 0xFF) << 8));
@@ -253,7 +293,10 @@ public class TcpApplication {
 		return new String(strBytes, StandardCharsets.UTF_8).trim();
 	}
 
-	private static void printFlagData(int flag) {
+	private static Map<String,Boolean> printFlagData(int flag) {
+
+		Map<String,Boolean> isData = new HashMap<>();
+
 		// Flag에 해당하는 데이터 출력
 		if ((flag & 0x00000001) != 0) {
 			System.out.println("ECG Data Present");
@@ -264,22 +307,45 @@ public class TcpApplication {
 		if ((flag & 0x00008000) != 0) {
 			System.out.println("RRG Data Present");
 		}
+
 		if ((flag & 0x00010000) != 0) {
+			isData.put("SPO2", true);
 			System.out.println("SPO2 Data Present");
+		} else {
+			isData.put("SPO2", false);
 		}
+
 		if ((flag & 0x00020000) != 0) {
+			isData.put("RESP", true);
 			System.out.println("RESP Data Present");
+		} else {
+			isData.put("RESP", false);
 		}
+
 		if ((flag & 0x00040000) != 0) {
+			isData.put("TEMP", true);
 			System.out.println("TEMP Data Present");
+		} else {
+			isData.put("TEMP", false);
 		}
+
 		if ((flag & 0x00080000) != 0) {
+			isData.put("NIBP", true);
 			System.out.println("NIBP Data Present");
+		} else {
+			isData.put("NIBP", false);
 		}
+
 		if ((flag & 0x00100000) != 0) {
+			isData.put("HR", true);
 			System.out.println("HR Data Present");
+		} else {
+			isData.put("HR", false);
 		}
+
+		return isData;
 	}
+
 	private static void printOpCode(int opCode){
 		if ((opCode & 0x20000006) != 0) {
 			System.out.println("ECG Data Present");
