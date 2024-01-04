@@ -1,5 +1,6 @@
 package com.example.tcp;
 
+import com.google.gson.JsonObject;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -14,7 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
 
 @SpringBootApplication
 public class TcpApplication {
@@ -57,17 +57,8 @@ public class TcpApplication {
 					// 클라이언트로부터 데이터를 읽어오기
 					byte[] test = new byte[1600];
 					Thread.sleep(1100);
-					int length = inputStream.read(test);
-					System.out.println(length);
+					inputStream.read(test);
 
-                    if (length > 1500){
-                        //서버로 데이터 보내기
-                        for (int i = 0; i < DEVICE_ID.length; i++) {
-                            urlConnection(DEVICE_ID[i], test);
-                        }
-                    }
-
-					System.out.println(Arrays.toString(test));
                     processMessage(test);
 
 					if (count >= 1) {
@@ -100,8 +91,32 @@ public class TcpApplication {
 		}
 	}
 
-	private static void urlConnection(String id, byte[] data) throws IOException {
-		String apiUrl = "http://localhost:8071/device/setWearableVitalSign?deviceId="+id;
+//	private static void urlConnection(String id, byte[] data) throws IOException {
+//		String apiUrl = "http://localhost:8071/device/setWearableVitalSign?deviceId="+id;
+//
+//		URL url = new URL(apiUrl);
+//		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+//		conn.setRequestMethod("POST");
+//		conn.setRequestProperty("Content-Type", "application/json");
+//		conn.setDoOutput(true);
+//
+//		OutputStream os = conn.getOutputStream();
+//		BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os,"UTF-8"));
+//		writer.write(Arrays.toString(data));
+//		writer.write(id);
+//		writer.flush();
+//		writer.close();
+//		os.close();
+//
+//		conn.getContent();
+//	}
+
+	private static void urlConnection(String deviceId, String ecgSampleRate, String ecgGraphData, String ppgSamplerate, String ppgGraphData,
+								String respirationSampleRate, String respirationGraph, short spo2Data, short respData, short tempData,
+								short nibpSys, short nibpDia, short nibpMean, short hrdata) throws IOException {
+		String apiUrl = "http://localhost:8071/device/setWearableVitalSign";
+
+		short battery = 0;
 
 		URL url = new URL(apiUrl);
 		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -109,48 +124,37 @@ public class TcpApplication {
 		conn.setRequestProperty("Content-Type", "application/json");
 		conn.setDoOutput(true);
 
+		JsonObject jsonObject = new JsonObject();
+		jsonObject.addProperty("deviceId",deviceId);
+		jsonObject.addProperty("ecgSampleRate",ecgSampleRate);
+		jsonObject.addProperty("ecgGraphData",ecgGraphData);
+		jsonObject.addProperty("ppgSampleRate",ppgSamplerate);
+		jsonObject.addProperty("ppgGraphData",ppgGraphData);
+		jsonObject.addProperty("respirationSampleRate",respirationSampleRate);
+		jsonObject.addProperty("respirationGraph",respirationGraph);
+		jsonObject.addProperty("spo2Data",spo2Data);
+		jsonObject.addProperty("respData",respData);
+		jsonObject.addProperty("tempData",tempData);
+		jsonObject.addProperty("nibpSys",nibpSys);
+		jsonObject.addProperty("nibpDia",nibpDia);
+		jsonObject.addProperty("nibpMean",nibpMean);
+		jsonObject.addProperty("hrdata",hrdata);
+		jsonObject.addProperty("battery",battery);
+
+		System.out.println(jsonObject);
+
 		OutputStream os = conn.getOutputStream();
 		BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os,"UTF-8"));
-		writer.write(Arrays.toString(data));
-		writer.write(id);
+		writer.write(jsonObject.toString());
 		writer.flush();
 		writer.close();
 		os.close();
 
 		conn.getContent();
+
 	}
 
-	private static void urlConnectionTest(String id, byte[] data) throws IOException {
-		String apiUrl = "http://localhost:8071/device/setWearableVitalSign?deviceId="+id;
-
-		URL url = new URL(apiUrl);
-		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-		conn.setRequestMethod("POST");
-		conn.setRequestProperty("Content-Type", "application/json");
-		conn.setDoOutput(true);
-
-		OutputStream os = conn.getOutputStream();
-		BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os,"UTF-8"));
-		writer.write(Arrays.toString(data));
-		writer.write(id);
-		writer.flush();
-		writer.close();
-		os.close();
-
-		conn.getContent();
-	}
-
-	private static byte[] hexStringToByteArray(String hexString) {
-		int len = hexString.length();
-		byte[] data = new byte[len / 2];
-		for (int i = 0; i < len; i += 2) {
-			data[i / 2] = (byte) ((Character.digit(hexString.charAt(i), 16) << 4)
-					+ Character.digit(hexString.charAt(i + 1), 16));
-		}
-		return data;
-	}
-
-	public static void processMessage(byte[] receivedData ) {
+	public static void processMessage(byte[] receivedData ) throws IOException {
 		int length = readIntFromBytes(receivedData, 0);
 		System.out.println("Length: " + length);
 
@@ -239,41 +243,61 @@ public class TcpApplication {
 
 		int dataLength = 1577;
 
+		short spo2 = 0;
 		if (isData.get("SPO2")){
-			short spo2 = readShortFromBytes(receivedData,dataLength);
+			spo2 = readShortFromBytes(receivedData,dataLength);
 			System.out.println("spo2: " + spo2);
 			dataLength += 2;
 		}
 
+		short resp = 0;
 		if (isData.get("RESP")){
-			short resp = readShortFromBytes(receivedData,dataLength);
+			resp = readShortFromBytes(receivedData,dataLength);
 			System.out.println("resp: " + resp);
 			dataLength += 2;
 		}
 
+		short temp = 0;
 		if (isData.get("TEMP")){
-			short temp = readShortFromBytes(receivedData,dataLength);
+			temp = readShortFromBytes(receivedData,dataLength);
 			System.out.println("temp: " + temp);
 			dataLength += 2;
 		}
 
-		if (isData.get("NIBP")){
-			short nibpSys = readShortFromBytes(receivedData,dataLength);
+		short nibpSys = 0;
+		short nibpDia = 0;
+		short nibpMean = 0;
+		if (isData.get("NIBP")) {
+			nibpSys = readShortFromBytes(receivedData, dataLength);
 			System.out.println("nibpSys: " + nibpSys);
 			dataLength += 2;
 
-			short nibpDia = readShortFromBytes(receivedData,dataLength);
+			nibpDia = readShortFromBytes(receivedData, dataLength);
 			System.out.println("nibpDia: " + nibpDia);
 			dataLength += 2;
 
-			short nibpMean = readShortFromBytes(receivedData,dataLength);
+			nibpMean = readShortFromBytes(receivedData, dataLength);
 			System.out.println("nibpMean: " + nibpMean);
 			dataLength += 2;
 		}
 
+		short hr = 0;
 		if (isData.get("HR")){
-			short hr = readShortFromBytes(receivedData,dataLength);
+			hr = readShortFromBytes(receivedData,dataLength);
 			System.out.println("hr: " + hr);
+		}
+
+		//실제 사용 api
+//		urlConnection(deviceId, String.valueOf(ecgSampleRate) ,Arrays.toString(ecgGraphData),String.valueOf(ppgSampleRate),Arrays.toString(ppgGraphData)
+//				,String.valueOf(rrgSampleRate),Arrays.toString(rrgGraphData),spo2,resp,temp,nibpSys,nibpDia,nibpDia,hr);
+
+		// test api -> 디바이스 Id 임의로 늘려놓은 데이터
+		if (length > 1500){
+				//서버로 데이터 보내기
+				for (int i = 0; i < DEVICE_ID.length; i++) {
+					urlConnection(DEVICE_ID[i], String.valueOf(ecgSampleRate) ,Arrays.toString(ecgGraphData),String.valueOf(ppgSampleRate),Arrays.toString(ppgGraphData)
+					,String.valueOf(rrgSampleRate),Arrays.toString(rrgGraphData),spo2,resp,temp,nibpSys,nibpDia,nibpDia,hr);
+				}
 		}
 	}
 	private static short readShortFromBytes(byte[] bytes, int offset) {
