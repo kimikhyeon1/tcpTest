@@ -21,9 +21,9 @@ public class TcpApplication {
 
 	private static final String[] DEVICE_ID = {
 			"VDR-1000", "VDR-10001"
-//			, "test-0001", "test-0002", "test-0003", "test-0004", "test-0005", "test-0006", "test-0007",
-//			"test-0008", "test-0009", "test-0010", "test-0011", "test-0012", "test-0013", "test-0014", "test-0015", "test-0016",
-//			"test-0017", "test-0018", "test-0019", "test-0020"
+			,"test-0001", "test-0002", "test-0003", "test-0004", "test-0005", "test-0006", "test-0007",
+			"test-0008", "test-0009", "test-0010", "test-0011", "test-0012", "test-0013", "test-0014", "test-0015", "test-0016",
+			"test-0017", "test-0018", "test-0019", "test-0020"
 	};
 
 	public static void main(String[] args) throws IOException {
@@ -296,7 +296,7 @@ public class TcpApplication {
 				//서버로 데이터 보내기
 				for (int i = 0; i < DEVICE_ID.length; i++) {
 					urlConnection(DEVICE_ID[i], String.valueOf(ecgSampleRate) ,Arrays.toString(ecgGraphData),String.valueOf(ppgSampleRate),Arrays.toString(ppgGraphData)
-					,String.valueOf(rrgSampleRate),Arrays.toString(rrgGraphData),spo2,resp,temp,nibpSys,nibpDia,nibpDia,hr);
+					,String.valueOf(rrgSampleRate),Arrays.toString(rrgGraphData),spo2,resp,temp,nibpSys,nibpDia,nibpMean,hr);
 				}
 		}
 	}
