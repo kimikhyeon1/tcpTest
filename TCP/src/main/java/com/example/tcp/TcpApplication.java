@@ -30,9 +30,9 @@ public class TcpApplication {
 		SpringApplication.run(TcpApplication.class, args);
 
 		ServerSocket serverSocket = null;
-		Socket socket = null;
-		InputStream inputStream = null;
-		OutputStream outputStream = null;
+		Socket socket;
+		InputStream inputStream;
+		OutputStream outputStream;
 
 		try {
 			// 서버 소켓 생성
@@ -57,9 +57,11 @@ public class TcpApplication {
 					// 클라이언트로부터 데이터를 읽어오기
 					byte[] test = new byte[1600];
 					Thread.sleep(1100);
-					inputStream.read(test);
+					int length = inputStream.read(test);
 
-                    processMessage(test);
+					if (length > 1000) {
+						processMessage(test);
+					}
 
 					if (count >= 1) {
 						byte[] secondVitalBytes = {0x10,0x00,0x00,0x00,0x23,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
@@ -225,6 +227,7 @@ public class TcpApplication {
 			ppgGraphData[i] = readShortFromBytes(receivedData,ppgRange);
 			ppgRange += 2;
 		}
+
 		System.out.println("ecgGraphData: " + Arrays.toString(ppgGraphData));
 
 		// rrgSampleRate
@@ -288,17 +291,22 @@ public class TcpApplication {
 		}
 
 		//실제 사용 api
-//		urlConnection(deviceId, String.valueOf(ecgSampleRate) ,Arrays.toString(ecgGraphData),String.valueOf(ppgSampleRate),Arrays.toString(ppgGraphData)
-//				,String.valueOf(rrgSampleRate),Arrays.toString(rrgGraphData),spo2,resp,temp,nibpSys,nibpDia,nibpDia,hr);
+		urlConnection(deviceId, String.valueOf(ecgSampleRate) ,Arrays.toString(ecgGraphData),String.valueOf(ppgSampleRate),Arrays.toString(ppgGraphData)
+				,String.valueOf(rrgSampleRate),Arrays.toString(rrgGraphData),spo2,resp,temp,nibpSys,nibpDia,nibpDia,hr);
 
 		// test api -> 디바이스 Id 임의로 늘려놓은 데이터
-		if (length > 1500){
-				//서버로 데이터 보내기
-				for (int i = 0; i < DEVICE_ID.length; i++) {
-					urlConnection(DEVICE_ID[i], String.valueOf(ecgSampleRate) ,Arrays.toString(ecgGraphData),String.valueOf(ppgSampleRate),Arrays.toString(ppgGraphData)
-					,String.valueOf(rrgSampleRate),Arrays.toString(rrgGraphData),spo2,resp,temp,nibpSys,nibpDia,nibpMean,hr);
-				}
-		}
+//		if (length > 1500){
+//				//서버로 데이터 보내기
+//				for (int i = 0; i < DEVICE_ID.length; i++) {
+//					urlConnection(DEVICE_ID[i], String.valueOf(ecgSampleRate) ,Arrays.toString(ecgGraphData),String.valueOf(ppgSampleRate),Arrays.toString(ppgGraphData)
+//					,String.valueOf(rrgSampleRate),Arrays.toString(rrgGraphData),spo2,resp,temp,nibpSys,nibpDia,nibpMean,hr);
+//				}
+//
+//				for (int i = 0; i < DEVICE_ID.length; i++) {
+//					urlConnection(DEVICE_ID[i], String.valueOf(ecgSampleRate) ,Arrays.toString(ecgGraphData),String.valueOf(ppgSampleRate),Arrays.toString(ppgGraphData)
+//					,String.valueOf(rrgSampleRate),Arrays.toString(rrgGraphData),spo2,resp,temp,nibpSys,nibpDia,nibpMean,hr);
+//			}
+//		}
 	}
 	private static short readShortFromBytes(byte[] bytes, int offset) {
 		return (short) ((bytes[offset] & 0xFF) | ((bytes[offset + 1] & 0xFF) << 8));
