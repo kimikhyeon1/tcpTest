@@ -19,12 +19,15 @@ import java.util.Map;
 @SpringBootApplication
 public class TcpApplication {
 
-	private static final String[] DEVICE_ID = {
+	private static final String[] TEST_DEVICE_ID = {
 			"VDR-1000", "VDR-10001"
 			,"test-0001", "test-0002", "test-0003", "test-0004", "test-0005", "test-0006", "test-0007",
 			"test-0008", "test-0009", "test-0010", "test-0011", "test-0012", "test-0013", "test-0014", "test-0015", "test-0016",
 			"test-0017", "test-0018", "test-0019", "test-0020"
 	};
+
+	private static final byte[] FIRST_RESPONSE = {0x10,0x00,0x00,0x00,0x07,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+	private static final byte[] SECOND_RESPONSE = {0x10,0x00,0x00,0x00,0x23,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 
 	public static void main(String[] args) throws IOException {
 		SpringApplication.run(TcpApplication.class, args);
@@ -64,15 +67,13 @@ public class TcpApplication {
 					}
 
 					if (count >= 1) {
-						byte[] secondVitalBytes = {0x10,0x00,0x00,0x00,0x23,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-						outputStream.write(secondVitalBytes);
+						outputStream.write(SECOND_RESPONSE);
 						outputStream.flush();
 						continue;
 					}
 
 					// 프로토콜 응답 코드
-					byte[] vitalBytes = {0x10,0x00,0x00,0x00,0x07,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-					outputStream.write(vitalBytes);
+					outputStream.write(FIRST_RESPONSE);
 					outputStream.flush();
 
 					System.out.println("응답 데이터를 클라이언트에 전송했습니다.");
@@ -217,7 +218,7 @@ public class TcpApplication {
 
 		// ppgSampleRate
 		short ppgSampleRate = readShortFromBytes(receivedData,563);
-		System.out.println("ecgSampleRate: " + ppgSampleRate);
+		System.out.println("ppgSampleRate: " + ppgSampleRate);
 
 		// ppgSampleRate
 		short[] ppgGraphData = new short[250];
@@ -228,11 +229,11 @@ public class TcpApplication {
 			ppgRange += 2;
 		}
 
-		System.out.println("ecgGraphData: " + Arrays.toString(ppgGraphData));
+		System.out.println("ppgGraphData: " + Arrays.toString(ppgGraphData));
 
 		// rrgSampleRate
 		short rrgSampleRate = readShortFromBytes(receivedData,1070);
-		System.out.println("ecgSampleRate: " + rrgSampleRate);
+		System.out.println("rrgSampleRate: " + rrgSampleRate);
 
 		// rrgGraphData
 		short[] rrgGraphData = new short[250];
@@ -242,7 +243,8 @@ public class TcpApplication {
 			rrgGraphData[i] = readShortFromBytes(receivedData,rrgRange);
 			rrgRange += 2;
 		}
-		System.out.println("ecgGraphData: " + Arrays.toString(rrgGraphData));
+
+		System.out.println("rrgGraphData: " + Arrays.toString(rrgGraphData));
 
 		int dataLength = 1577;
 
@@ -270,6 +272,7 @@ public class TcpApplication {
 		short nibpSys = 0;
 		short nibpDia = 0;
 		short nibpMean = 0;
+
 		if (isData.get("NIBP")) {
 			nibpSys = readShortFromBytes(receivedData, dataLength);
 			System.out.println("nibpSys: " + nibpSys);
@@ -292,7 +295,7 @@ public class TcpApplication {
 
 		//실제 사용 api
 		urlConnection(deviceId, String.valueOf(ecgSampleRate) ,Arrays.toString(ecgGraphData),String.valueOf(ppgSampleRate),Arrays.toString(ppgGraphData)
-				,String.valueOf(rrgSampleRate),Arrays.toString(rrgGraphData),spo2,resp,temp,nibpSys,nibpDia,nibpDia,hr);
+				,String.valueOf(rrgSampleRate),Arrays.toString(rrgGraphData),spo2,resp,temp,nibpSys,nibpDia,nibpMean,hr);
 
 		// test api -> 디바이스 Id 임의로 늘려놓은 데이터
 //		if (length > 1500){
@@ -309,8 +312,10 @@ public class TcpApplication {
 //		}
 	}
 	private static short readShortFromBytes(byte[] bytes, int offset) {
-		return (short) ((bytes[offset] & 0xFF) | ((bytes[offset + 1] & 0xFF) << 8));
+//		return (short) ((bytes[offset] & 0xFF) | ((bytes[offset + 1] & 0xFF) << 8));
+		return ByteBuffer.wrap(bytes, offset, 2).order(ByteOrder.LITTLE_ENDIAN).getShort();
 	}
+
 	private static int readIntFromBytes(byte[] bytes, int offset) {
 		return ByteBuffer.wrap(bytes, offset, 4).order(ByteOrder.LITTLE_ENDIAN).getInt();
 	}
