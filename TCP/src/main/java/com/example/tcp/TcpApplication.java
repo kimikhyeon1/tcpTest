@@ -5,10 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.URL;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -29,13 +26,16 @@ public class TcpApplication {
 	private static final byte[] FIRST_RESPONSE = {0x10,0x00,0x00,0x00,0x07,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 	private static final byte[] SECOND_RESPONSE = {0x10,0x00,0x00,0x00,0x23,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, InterruptedException {
 		SpringApplication.run(TcpApplication.class, args);
 
 		ServerSocket serverSocket = null;
 		Socket socket;
 		InputStream inputStream;
 		OutputStream outputStream;
+
+		long lastPacketTime = System.currentTimeMillis();
+
 
 		try {
 			// 서버 소켓 생성
@@ -46,69 +46,69 @@ public class TcpApplication {
 			while (true) {
 				socket = serverSocket.accept();
 				System.out.println("클라이언트가 연결되었습니다.");
-				int count = 0;
+
+				// 첫번째 패킷인지 확인
+				boolean isFirstPacket = true;
 
 				while (true) {
+					try {
+						System.out.println("데이터를 받습니다.");
 
-					System.out.println("데이터를 받습니다.");
+						// 클라이언트로부터 데이터를 읽기 위한 InputStream 생성
+						inputStream = socket.getInputStream();
+						// 클라이언트로부터 데이터를 전송하기 위한 OutputStream 생성
+						outputStream = socket.getOutputStream();
 
-					// 클라이언트로부터 데이터를 읽기 위한 InputStream 생성
-					inputStream = socket.getInputStream();
-					// 클라이언트로부터 데이터를 전송하기 위한 OutputStream 생성
-					outputStream = socket.getOutputStream();
+						// 클라이언트로부터 데이터를 읽어오기
+						byte[] test = new byte[1600];
 
-					// 클라이언트로부터 데이터를 읽어오기
-					byte[] test = new byte[1600];
-					Thread.sleep(1100);
-					int length = inputStream.read(test);
+						int length = inputStream.read(test);
 
-					if (length > 1000) {
-						processMessage(test);
-					}
+						if (length > 1000) {
+							processMessage(test);
+						}
 
-					if (count >= 1) {
-						outputStream.write(SECOND_RESPONSE);
+						long currentTime = System.currentTimeMillis();
+						long elapsedTime = currentTime - lastPacketTime;
+
+						System.out.println(elapsedTime);
+						if (elapsedTime < 1000) {
+							// Wait until 1 second has passed since the last packet
+							Thread.sleep(1000 - elapsedTime);
+						}
+
+						lastPacketTime = System.currentTimeMillis();
+
+
+						if (!isFirstPacket) {
+							outputStream.write(SECOND_RESPONSE);
+							outputStream.flush();
+							continue;
+						}
+
+						// 프로토콜 응답 코드
+						outputStream.write(FIRST_RESPONSE);
 						outputStream.flush();
-						continue;
+
+						System.out.println("응답 데이터를 클라이언트에 전송했습니다.");
+
+						isFirstPacket = false;
+
+					} catch (SocketException e){
+						System.out.println(" 연결 종료 " );
+						System.out.println(" 소켓 연결 대기 중");
+						break;
 					}
-
-					// 프로토콜 응답 코드
-					outputStream.write(FIRST_RESPONSE);
-					outputStream.flush();
-
-					System.out.println("응답 데이터를 클라이언트에 전송했습니다.");
-
-					count++;
-				}
+                }
 			}
 
-		} catch (IOException | InterruptedException e) {
+		} catch (IOException e) {
 			throw new RuntimeException(e);
         } finally {
 			serverSocket.close();
 			System.out.println("통신이 종료");
 		}
 	}
-
-//	private static void urlConnection(String id, byte[] data) throws IOException {
-//		String apiUrl = "http://localhost:8071/device/setWearableVitalSign?deviceId="+id;
-//
-//		URL url = new URL(apiUrl);
-//		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-//		conn.setRequestMethod("POST");
-//		conn.setRequestProperty("Content-Type", "application/json");
-//		conn.setDoOutput(true);
-//
-//		OutputStream os = conn.getOutputStream();
-//		BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os,"UTF-8"));
-//		writer.write(Arrays.toString(data));
-//		writer.write(id);
-//		writer.flush();
-//		writer.close();
-//		os.close();
-//
-//		conn.getContent();
-//	}
 
 	private static void urlConnection(String deviceId, String ecgSampleRate, String ecgGraphData, String ppgSamplerate, String ppgGraphData,
 								String respirationSampleRate, String respirationGraph, short spo2Data, short respData, short tempData,
