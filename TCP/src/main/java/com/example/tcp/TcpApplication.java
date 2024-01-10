@@ -78,10 +78,6 @@ public class TcpApplication {
 
 					System.out.println("응답 데이터를 클라이언트에 전송했습니다.");
 
-//					if (count == 1) {
-//						break;
-//					}
-
 					count++;
 				}
 			}
