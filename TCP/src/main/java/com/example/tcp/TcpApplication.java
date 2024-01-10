@@ -26,87 +26,85 @@ public class TcpApplication {
 	private static final byte[] FIRST_RESPONSE = {0x10,0x00,0x00,0x00,0x07,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 	private static final byte[] SECOND_RESPONSE = {0x10,0x00,0x00,0x00,0x23,0x00,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 
-	public static void main(String[] args) throws IOException, InterruptedException {
+	public static void main(String[] args) throws InterruptedException {
 		SpringApplication.run(TcpApplication.class, args);
 
-		ServerSocket serverSocket = null;
-		Socket socket;
-		InputStream inputStream;
-		OutputStream outputStream;
 
-		long lastPacketTime = System.currentTimeMillis();
+        Socket socket;
+        InputStream inputStream;
+        OutputStream outputStream;
+        long lastPacketTime = System.currentTimeMillis();
 
+        try (ServerSocket serverSocket = new ServerSocket(9999)) {
+            // 서버 소켓 생성
+            System.out.println("서버가 9999 포트에서 대기 중...");
 
-		try {
-			// 서버 소켓 생성
-			serverSocket = new ServerSocket(9999);
-			System.out.println("서버가 9999 포트에서 대기 중...");
+            // 클라이언트의 연결을 기다림
+            while (true) {
+                socket = serverSocket.accept();
+                System.out.println("클라이언트가 연결되었습니다.");
 
-			// 클라이언트의 연결을 기다림
-			while (true) {
-				socket = serverSocket.accept();
-				System.out.println("클라이언트가 연결되었습니다.");
+                // 첫번째 패킷인지 확인
+                boolean isFirstPacket = true;
 
-				// 첫번째 패킷인지 확인
-				boolean isFirstPacket = true;
+                while (true) {
+                    try {
+                        System.out.println("데이터를 받습니다.");
 
-				while (true) {
-					try {
-						System.out.println("데이터를 받습니다.");
+                        // 클라이언트로부터 데이터를 읽기 위한 InputStream 생성
+                        inputStream = socket.getInputStream();
+                        // 클라이언트로부터 데이터를 전송하기 위한 OutputStream 생성
+                        outputStream = socket.getOutputStream();
 
-						// 클라이언트로부터 데이터를 읽기 위한 InputStream 생성
-						inputStream = socket.getInputStream();
-						// 클라이언트로부터 데이터를 전송하기 위한 OutputStream 생성
-						outputStream = socket.getOutputStream();
+                        // 클라이언트로부터 데이터를 읽어오기
+                        byte[] test = new byte[1600];
 
-						// 클라이언트로부터 데이터를 읽어오기
-						byte[] test = new byte[1600];
+                        int length = inputStream.read(test);
 
-						int length = inputStream.read(test);
+						System.out.println(Arrays.toString(test));
 
-						if (length > 1000) {
-							processMessage(test);
-						}
+                        if (length > 1000) {
+                            processMessage(test);
+                        }
 
-						long currentTime = System.currentTimeMillis();
-						long elapsedTime = currentTime - lastPacketTime;
+                        long currentTime = System.currentTimeMillis();
+                        long elapsedTime = currentTime - lastPacketTime;
 
-						if (elapsedTime < 1000) {
-							// Wait until 1 second has passed since the last packet
-							Thread.sleep(1000 - elapsedTime);
-						}
+                        if (elapsedTime < 1000) {
+                            Thread.sleep(1000 - elapsedTime);
+                        }
 
-						lastPacketTime = System.currentTimeMillis();
+                        lastPacketTime = System.currentTimeMillis();
 
-						// 두번째 패킷 응답
-						if (!isFirstPacket) {
-							outputStream.write(SECOND_RESPONSE);
-							outputStream.flush();
-							continue;
-						}
+                        // 두번째 패킷 응답
+                        if (!isFirstPacket) {
+                            outputStream.write(SECOND_RESPONSE);
+                            outputStream.flush();
+                            continue;
+                        }
 
-						// 프로토콜 첫번째 패킷 응답 코드
-						outputStream.write(FIRST_RESPONSE);
-						outputStream.flush();
+                        // 프로토콜 첫번째 패킷 응답 코드
+                        outputStream.write(FIRST_RESPONSE);
+                        outputStream.flush();
 
-						System.out.println("응답 데이터를 클라이언트에 전송했습니다.");
+                        System.out.println("응답 데이터를 클라이언트에 전송했습니다.");
 
-						isFirstPacket = false;
+                        isFirstPacket = false;
 
-					} catch (SocketException e){
-						System.out.println(" 연결 종료 " );
-						System.out.println(" 소켓 연결 대기 중");
-						break;
-					}
+                    } catch (SocketException e) {
+                        System.out.println(" 연결 종료 ");
+                        System.out.println(" 소켓 연결 대기 중 ");
+                        break;
+                    }
                 }
-			}
+            }
 
-		} catch (IOException e) {
-			throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         } finally {
-			serverSocket.close();
-			System.out.println("통신이 종료");
+			System.out.println(" 통신 종료 ");
 		}
+
 	}
 
 	private static void urlConnection(String deviceId, String ecgSampleRate, String ecgGraphData, String ppgSamplerate, String ppgGraphData,
