@@ -71,7 +71,6 @@ public class TcpApplication {
 						long currentTime = System.currentTimeMillis();
 						long elapsedTime = currentTime - lastPacketTime;
 
-						System.out.println(elapsedTime);
 						if (elapsedTime < 1000) {
 							// Wait until 1 second has passed since the last packet
 							Thread.sleep(1000 - elapsedTime);
@@ -79,14 +78,14 @@ public class TcpApplication {
 
 						lastPacketTime = System.currentTimeMillis();
 
-
+						// 두번째 패킷 응답
 						if (!isFirstPacket) {
 							outputStream.write(SECOND_RESPONSE);
 							outputStream.flush();
 							continue;
 						}
 
-						// 프로토콜 응답 코드
+						// 프로토콜 첫번째 패킷 응답 코드
 						outputStream.write(FIRST_RESPONSE);
 						outputStream.flush();
 
